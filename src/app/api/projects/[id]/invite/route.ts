@@ -26,37 +26,52 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         const project = await prisma.project.findUnique({
             where: { id },
-            select: { workspaceId: true }
+            select: { workspaceId: true, agencyId: true }
         });
 
         if (!project) {
             return NextResponse.json({ error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
         }
 
-        await prisma.project.update({
-            where: { id },
-            data: { agencyId: developer.id }
-        });
+        if (project.agencyId) {
+             return NextResponse.json({ error: "이미 파트너가 연결된 프로젝트입니다." }, { status: 400 });
+        }
 
-        // Add developer to workspace
-        await prisma.workspaceMember.upsert({
+        // Check if an invite already exists
+        const existingInvite = await prisma.projectInvite.findUnique({
             where: {
-                workspaceId_userId: {
-                    workspaceId: project.workspaceId,
-                    userId: developer.id
+                projectId_agencyId: {
+                    projectId: id,
+                    agencyId: developer.id
                 }
-            },
-            update: {
-                role: 'member'
-            },
-            create: {
-                workspaceId: project.workspaceId,
-                userId: developer.id,
-                role: 'member'
             }
         });
 
-        return NextResponse.json({ success: true });
+        if (existingInvite) {
+            if (existingInvite.status === "PENDING") {
+                 return NextResponse.json({ error: "이미 초대를 대기 중인 파트너입니다." }, { status: 400 });
+            } else if (existingInvite.status === "ACCEPTED") {
+                 return NextResponse.json({ error: "이미 연결된 파트너입니다." }, { status: 400 });
+            } else {
+                 // REJECTED case - we can create a new invite by updating the status
+                 await prisma.projectInvite.update({
+                     where: { id: existingInvite.id },
+                     data: { status: "PENDING" }
+                 });
+                 return NextResponse.json({ success: true, message: "재초대 되었습니다." });
+            }
+        }
+
+        // Create new invite
+        await prisma.projectInvite.create({
+            data: {
+                projectId: id,
+                agencyId: developer.id,
+                status: "PENDING"
+            }
+        });
+
+        return NextResponse.json({ success: true, message: "초대가 발송되었습니다." });
     } catch (error: any) {
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }

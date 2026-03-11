@@ -57,6 +57,11 @@ export default async function ProjectDashboard({ params }: { params: Promise<{ i
 
 
 
+    const pendingInvite = await prisma.projectInvite.findFirst({
+        where: { projectId: id, status: "PENDING" },
+        include: { agency: { select: { email: true, name: true } } }
+    });
+
     return (
         <DashboardRoleView
             project={{
@@ -65,6 +70,10 @@ export default async function ProjectDashboard({ params }: { params: Promise<{ i
                 description: project.description || '',
                 healthScore: project.healthScore,
                 agencyId: project.agencyId,
+                pendingInvite: pendingInvite ? {
+                    email: pendingInvite.agency.email,
+                    name: pendingInvite.agency.name
+                } : null,
                 scopeDocs: project.scopeDocs.map(doc => ({
                     id: doc.id,
                     title: doc.title,

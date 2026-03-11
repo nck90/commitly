@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { ProjectInvitesClient } from "./ProjectInvitesClient";
 
 export default async function Home() {
     const session = await getServerSession(authOptions);
@@ -11,11 +12,27 @@ export default async function Home() {
     const role = (session?.user as any)?.role;
 
     let projects: any[] = [];
+    let pendingInvites: any[] = [];
+    
     if (userId && role) {
         projects = await prisma.project.findMany({
             where: role === 'client' ? { clientId: userId } : { agencyId: userId },
             orderBy: { createdAt: "desc" }
         });
+        
+        if (role === 'developer') {
+            pendingInvites = await prisma.projectInvite.findMany({
+                where: { agencyId: userId, status: "PENDING" },
+                include: {
+                    project: {
+                        include: {
+                            client: { select: { name: true, email: true } }
+                        }
+                    }
+                },
+                orderBy: { createdAt: "desc" }
+            });
+        }
     }
 
     return (
@@ -25,7 +42,7 @@ export default async function Home() {
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight">내 프로젝트</h1>
                         <p className="mt-2 text-muted-foreground">
-                            Commitly를 통해 관리되고 있는 외주 프로젝트 목록입니다.
+                            Commitly를 통해 관리되고 있는 프로젝트 목록입니다.
                         </p>
                     </div>
                     <Link
@@ -36,6 +53,8 @@ export default async function Home() {
                         새 프로젝트 생성
                     </Link>
                 </div>
+
+                <ProjectInvitesClient invites={pendingInvites} />
 
                 {projects.length === 0 ? (
                     <div className="text-center py-20 border-2 border-dashed border-border/60 rounded-3xl bg-card">

@@ -30,6 +30,7 @@ interface DashboardProject {
         contentUrl: string | null;
         createdAt: Date;
     }[];
+    pendingInvite?: { email: string, name: string | null } | null;
 }
 
 interface DashboardStats {
@@ -400,7 +401,11 @@ function ClientDashboard({ project, stats }: { project: DashboardProject; stats:
                     <p className="text-muted-foreground mt-2 text-lg">프로젝트가 얼마나 완성되었는지 투명하게 공유해 드릴게요.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <InviteDeveloperButton projectId={project.id} hasAgency={!!project.agencyId} />
+                    <InviteDeveloperButton 
+                        projectId={project.id} 
+                        hasAgency={!!project.agencyId} 
+                        pendingInvite={project.pendingInvite} 
+                    />
                     <button onClick={() => { window.open("https://commitly-trust-layer.lovable.app", "_blank"); toast.success("테스트 환경 창이 열렸습니다."); }} className="px-6 py-3 border border-blue-500/30 bg-blue-500/10 text-blue-500 hover:bg-blue-500 text-sm font-bold rounded-2xl hover:text-white transition-all shadow-sm flex items-center gap-2 relative group overflow-hidden">
                         <MonitorPlay className="w-5 h-5 relative z-10" />
                         <span className="relative z-10">지금까지 만들어진 앱 모양 미리보기</span>
@@ -844,10 +849,11 @@ export function DetailedReportCard({ children, projectId }: { children: ReactNod
     return (<div onClick={() => router.push(`/projects/${projectId}/reports/latest`)} className="cursor-pointer w-full h-full">{children}</div>);
 }
 
-export function InviteDeveloperButton({ projectId, hasAgency }: { projectId: string, hasAgency?: boolean }) {
+export function InviteDeveloperButton({ projectId, hasAgency, pendingInvite }: { projectId: string, hasAgency?: boolean, pendingInvite?: {email: string, name: string | null} | null }) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [email, setEmail] = useState("");
+    const [disconnectLoading, setDisconnectLoading] = useState(false);
 
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -865,7 +871,7 @@ export function InviteDeveloperButton({ projectId, hasAgency }: { projectId: str
                 return;
             }
 
-            toast.success("개발자가 성공적으로 프로젝트에 초대되어 연결되었습니다!");
+            toast.success("개발사에게 파트너 연동 초대장이 발송되었습니다!");
             setOpen(false);
             setEmail("");
             window.location.reload();
@@ -874,10 +880,60 @@ export function InviteDeveloperButton({ projectId, hasAgency }: { projectId: str
         }
     };
 
+    const handleDisconnect = async () => {
+        if (!confirm("정말 현재 연결된 파트너 개발사를 해제하시겠습니까? (이 작업으로 인해 프로젝트 설정이 변경될 수 있습니다.)")) return;
+        
+        setDisconnectLoading(true);
+        try {
+            const res = await fetch(`/api/projects/${projectId}/disconnect`, { method: "POST" });
+            const data = await res.json();
+            
+            if (!res.ok) {
+                toast.error(data.error || "해제에 실패했습니다.");
+                return;
+            }
+            
+            toast.success("파트너 개발사와의 연결이 안전하게 해제되었습니다.");
+            window.location.reload();
+        } finally {
+            setDisconnectLoading(false);
+        }
+    }
+
     if (hasAgency) {
         return (
-            <div className="px-5 py-3 border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-sm font-bold rounded-2xl shadow-sm flex items-center gap-2 cursor-default">
-                <CheckCircle2 className="w-5 h-5" /> 파트너 연결 완료
+            <div className="flex items-center gap-2">
+                <div className="px-5 py-3 flex-1 border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-sm font-bold rounded-2xl shadow-sm flex items-center gap-2 cursor-pointer hover:bg-emerald-500/20 transition-all" onClick={() => setOpen(true)}>
+                    <CheckCircle2 className="w-5 h-5" /> 파트너 연결 작동중
+                </div>
+                
+                <Dialog open={open} onOpenChange={setOpen}>
+                    <DialogContent className="max-w-md bg-background/95 backdrop-blur-2xl border border-border/50 shadow-2xl rounded-3xl">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-extrabold pb-1 flex items-center gap-2 text-emerald-500">
+                                 <CheckCircle2 className="w-5 h-5" /> 이미 연동된 파트너가 있습니다
+                            </DialogTitle>
+                            <DialogDescription className="text-sm">현재 이 프로젝트는 개발사 파트너와 성공적으로 양방향 연동되어 소통 중입니다. 다른 파트너와 작업하려면 먼저 기존 연결을 해제해야 합니다.</DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                            <button type="button" className="px-5 py-2.5 border border-border/60 text-foreground text-sm font-bold rounded-xl hover:bg-muted" onClick={() => setOpen(false)}>닫기</button>
+                            <button type="button" disabled={disconnectLoading} onClick={handleDisconnect} className="px-5 py-2.5 bg-destructive/10 text-destructive border border-destructive/20 text-sm font-bold rounded-xl hover:bg-destructive hover:text-white transition-all flex items-center justify-center gap-2">
+                                {disconnectLoading ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : "파트너 권한 해제하기"}
+                            </button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        );
+    }
+
+    if (pendingInvite) {
+        return (
+            <div className="flex items-center gap-2 max-w-[280px]">
+                <div className="px-4 py-3 min-w-0 border border-amber-500/30 bg-amber-500/10 text-amber-600 text-sm font-bold rounded-2xl shadow-sm flex items-center gap-2">
+                    <Clock className="w-5 h-5 flex-shrink-0 animate-pulse" /> 
+                    <span className="truncate" title={`${pendingInvite.email} 연결 대기중`}>[수락 대기] {pendingInvite.name || pendingInvite.email}</span>
+                </div>
             </div>
         );
     }
