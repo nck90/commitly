@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, FileText, AlertCircle, Calendar, CheckSquare, GitCommit, Link as LinkIcon, Paperclip, CheckCircle2, Circle, MoreHorizontal, User, Clock, MessagesSquare, Activity } from "lucide-react";
+import { ArrowLeft, FileText, AlertCircle, Calendar, CheckSquare, GitCommit, Link as LinkIcon, Paperclip, CheckCircle2, Circle, MoreHorizontal, User, Clock, MessagesSquare, Activity, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +10,16 @@ export function FeatureDetailClient({ project, feature }: { project: any, featur
     const { role } = useAuth();
     const [progress, setProgress] = useState(feature.progressPercentage || 0);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Checklist state
+    const [checklists, setChecklists] = useState<any[]>(feature.checklists || []);
+    const [newChecklistContent, setNewChecklistContent] = useState("");
+    const [isAddingChecklist, setIsAddingChecklist] = useState(false);
+
+    // Discussion Replies state
+    const [replies, setReplies] = useState<any[]>(feature.replies || []);
+    const [newReplyContent, setNewReplyContent] = useState("");
+    const [isPostingReply, setIsPostingReply] = useState(false);
 
     // Map priority
     const priorityConfig = {
@@ -26,26 +36,105 @@ export function FeatureDetailClient({ project, feature }: { project: any, featur
 
     const handleSaveProgress = async () => {
         setIsSaving(true);
-        // Simulate a network request to save progress
-        await new Promise(res => setTimeout(res, 800));
-        setIsSaving(false);
-        toast.success("Progress updated successfully.");
+        try {
+            const res = await fetch(`/api/features/${feature.id}/progress`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ progressPercentage: progress })
+            });
+            if (!res.ok) throw new Error("Failed to update progress");
+            toast.success("개발 진척도가 업데이트 되었습니다.");
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    // Mock Data for Richness optimized for Client
-    const mockChecklist = [
-        { id: 1, text: "명세 및 요구사항 분석 완료", done: true },
-        { id: 2, text: "데이터베이스 설계 및 구조 작업", done: progress > 15 },
-        { id: 3, text: "서버 데이터 연동 및 통신 기능 개발", done: progress > 40 },
-        { id: 4, text: "사용자 화면(UI/UX) 구현 및 연동", done: progress > 70 },
-        { id: 5, text: "기능 QA 테스트 및 안정화", done: progress >= 100 },
-    ];
+    const handleAddChecklist = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newChecklistContent.trim()) return;
+        
+        setIsAddingChecklist(true);
+        try {
+            const res = await fetch(`/api/features/${feature.id}/checklists`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: newChecklistContent })
+            });
+            if (!res.ok) throw new Error("Failed to add checklist");
+            const newChecklist = await res.json();
+            
+            setChecklists([...checklists, newChecklist]);
+            setNewChecklistContent("");
+            toast.success("항목이 추가되었습니다.");
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsAddingChecklist(false);
+        }
+    };
 
-    const mockGitLog = [
-        { id: 1, type: "update", text: "화면 레이아웃 및 기본 디자인 틀 작업 완료", time: "2일 전", author: "개발팀" },
-        { id: 2, type: "update", text: "사용성 개선 및 내부 QA 피드백 반영", time: "어제", author: "통합테스트팀" },
-        { id: 3, type: "status", text: `작업 상태가 변경되었습니다. (${feature.status.replace("_", " ")})`, time: "오늘", author: "PM" },
-    ];
+    const handleToggleChecklist = async (id: string, currentStatus: boolean) => {
+        // Optimistic update
+        setChecklists(checklists.map(c => c.id === id ? { ...c, isCompleted: !currentStatus } : c));
+        
+        try {
+            const res = await fetch(`/api/checklists/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isCompleted: !currentStatus })
+            });
+            if (!res.ok) throw new Error("Failed to update status");
+        } catch (e: any) {
+            // Revert
+            setChecklists(checklists.map(c => c.id === id ? { ...c, isCompleted: currentStatus } : c));
+            toast.error("업데이트에 실패했습니다.");
+        }
+    };
+
+    const handleDeleteChecklist = async (id: string) => {
+        if (!window.confirm("정말 이 항목을 삭제하시겠습니까?")) return;
+        
+        // Optimistic update
+        const prevChecklists = [...checklists];
+        setChecklists(checklists.filter(c => c.id !== id));
+        
+        try {
+            const res = await fetch(`/api/checklists/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Failed to delete checklist");
+            toast.success("항목이 삭제되었습니다.");
+        } catch (e: any) {
+            setChecklists(prevChecklists);
+            toast.error("삭제에 실패했습니다.");
+        }
+    };
+
+    const handlePostReply = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newReplyContent.trim()) return;
+        
+        setIsPostingReply(true);
+        try {
+            const res = await fetch(`/api/features/${feature.id}/replies`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: newReplyContent })
+            });
+            if (!res.ok) throw new Error("메시지 전송에 실패했습니다.");
+            
+            const newReply = await res.json();
+            setReplies([...replies, newReply]);
+            setNewReplyContent("");
+            toast.success("메시지가 전송되었습니다.");
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsPostingReply(false);
+        }
+    };
+
+    const updates = feature.updates || [];
 
     return (
         <div className="max-w-[1200px] mx-auto py-8 px-4 sm:px-6">
@@ -129,34 +218,126 @@ export function FeatureDetailClient({ project, feature }: { project: any, featur
                             <CheckSquare className="w-5 h-5 text-primary" /> 개발 진행 체크리스트 (Milestones)
                         </h2>
                         <div className="bg-background border border-border/50 rounded-3xl p-3 shadow-sm">
-                            {mockChecklist.map(task => (
-                                <div key={task.id} className="flex items-center gap-4 p-4 hover:bg-muted/30 rounded-2xl transition-colors group">
-                                    {task.done ? (
-                                        <div className="w-8 h-8 rounded-full bg-success/10 text-success flex items-center justify-center shrink-0 border border-success/20">
-                                            <CheckCircle2 className="w-5 h-5" />
-                                        </div>
-                                    ) : (
-                                        <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground/50 flex items-center justify-center shrink-0 border border-border">
-                                            <Circle className="w-4 h-4" />
-                                        </div>
-                                    )}
-                                    <span className={`text-[15px] ${task.done ? 'text-muted-foreground font-medium' : 'text-foreground font-bold'}`}>
-                                        {task.text}
-                                    </span>
+                            {checklists.length === 0 ? (
+                                <div className="text-center py-6">
+                                    <p className="text-sm text-muted-foreground">등록된 체크리스트 항목이 없습니다.</p>
                                 </div>
-                            ))}
+                            ) : (
+                                checklists.map(task => (
+                                    <div key={task.id} className="flex items-center gap-4 p-4 hover:bg-muted/30 rounded-2xl transition-colors group">
+                                        <button 
+                                            onClick={() => role === 'developer' && handleToggleChecklist(task.id, task.isCompleted)}
+                                            disabled={role !== 'developer'}
+                                            className="focus:outline-none"
+                                        >
+                                            {task.isCompleted ? (
+                                                <div className="w-8 h-8 rounded-full bg-success/10 text-success flex items-center justify-center shrink-0 border border-success/20 hover:bg-success/20 transition-colors">
+                                                    <CheckCircle2 className="w-5 h-5" />
+                                                </div>
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground/50 flex items-center justify-center shrink-0 border border-border hover:bg-muted/80 transition-colors">
+                                                    <Circle className="w-4 h-4" />
+                                                </div>
+                                            )}
+                                        </button>
+                                        <span className={`text-[15px] flex-1 ${task.isCompleted ? 'text-muted-foreground font-medium line-through decoration-muted-foreground/30' : 'text-foreground font-bold'}`}>
+                                            {task.content}
+                                        </span>
+                                        {role === 'developer' && (
+                                            <button
+                                                onClick={() => handleDeleteChecklist(task.id)}
+                                                className="opacity-0 group-hover:opacity-100 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+                                                title="항목 삭제"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+
+                            {role === 'developer' && (
+                                <form onSubmit={handleAddChecklist} className="mt-4 flex items-center gap-2 p-2 border-t border-border/50 pt-4">
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="text" 
+                                            value={newChecklistContent}
+                                            onChange={(e) => setNewChecklistContent(e.target.value)}
+                                            placeholder="새로운 작업 항목을 입력하세요..."
+                                            className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+                                            disabled={isAddingChecklist}
+                                        />
+                                    </div>
+                                    <button 
+                                        type="submit" 
+                                        disabled={!newChecklistContent.trim() || isAddingChecklist}
+                                        className="bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0"
+                                    >
+                                        <Plus className="w-4 h-4" /> 추가
+                                    </button>
+                                </form>
+                            )}
                         </div>
                     </section>
 
-                    {/* Comments Placeholder */}
+                    {/* Communication */}
                     <section>
                         <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
                             <MessagesSquare className="w-5 h-5 text-primary" /> 소통 및 논의 기록
                         </h2>
-                        <div className="bg-background border border-border/50 rounded-3xl p-10 text-center shadow-sm">
-                            <MessagesSquare className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                            <p className="text-sm font-bold text-foreground/80 mb-1">아직 주고받은 메시지가 없습니다.</p>
-                            <p className="text-xs text-muted-foreground">이 기능과 관련해 궁금한 점이 있으시다면 언제든 남겨주세요.</p>
+                        <div className="bg-background border border-border/50 rounded-3xl p-6 shadow-sm flex flex-col h-[500px]">
+                            
+                            {/* Message List */}
+                            <div className="flex-1 overflow-y-auto mb-4 space-y-4 pr-2 custom-scrollbar">
+                                {replies.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground/60">
+                                        <MessagesSquare className="w-12 h-12 mb-4 opacity-50" />
+                                        <p className="text-sm font-bold text-foreground/80 mb-1">아직 주고받은 메시지가 없습니다.</p>
+                                        <p className="text-xs">이 기능과 관련해 궁금한 점이 있으시다면 언제든 남겨주세요.</p>
+                                    </div>
+                                ) : (
+                                    replies.map((reply) => (
+                                        <div key={reply.id} className="flex gap-3">
+                                            <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0 text-primary-foreground font-bold text-xs shadow-sm capitalize">
+                                                {reply.author?.name ? reply.author.name.charAt(0) : "U"}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex flex-col bg-muted/40 rounded-2xl rounded-tl-sm p-4 border border-border/50">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-sm font-bold text-foreground/90">{reply.author?.name || "알 수 없음"}</span>
+                                                        <span className="text-[10px] text-muted-foreground font-medium">{new Date(reply.createdAt).toLocaleString()}</span>
+                                                    </div>
+                                                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap word-break-keep-all">{reply.content}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Input Form */}
+                            <form onSubmit={handlePostReply} className="pt-4 border-t border-border/50 flex gap-3 relative">
+                                <div className="absolute left-4 top-[26px] z-10">
+                                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-[10px] font-black uppercase">
+                                        {role?.charAt(0) || "U"}
+                                    </div>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={newReplyContent}
+                                    onChange={(e) => setNewReplyContent(e.target.value)}
+                                    placeholder="기능에 대한 문의나 피드백을 남겨주세요..."
+                                    className="flex-1 bg-muted/30 border border-border/50 rounded-2xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+                                    disabled={isPostingReply}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!newReplyContent.trim() || isPostingReply}
+                                    className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl text-sm font-bold hover:bg-primary/90 transition-all shadow-md active:scale-95 disabled:opacity-50 shrink-0"
+                                >
+                                    {isPostingReply ? "전송 중..." : "전송"}
+                                </button>
+                            </form>
                         </div>
                     </section>
                 </div>
@@ -237,23 +418,25 @@ export function FeatureDetailClient({ project, feature }: { project: any, featur
                             <Activity className="w-5 h-5 text-primary" /> 팀 작업 현황 히스토리
                         </h3>
                         <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-[2px] before:bg-gradient-to-b before:from-border/80 before:to-transparent overflow-hidden">
-                            {mockGitLog.map((log, i) => (
-                                <div key={log.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group mb-6 last:mb-0">
-                                    <div className={`flex items-center justify-center w-5 h-5 rounded-full border-4 border-background shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10 ${log.type === 'update' ? 'bg-primary' : 'bg-muted-foreground'}`} />
-                                    <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] bg-muted/20 p-4 rounded-2xl border border-border/40 hover:border-primary/30 transition-colors shadow-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            {log.type === 'update' ? (
-                                                <div className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-black tracking-wider uppercase">보고</div>
-                                            ) : (
-                                                <div className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-black tracking-wider uppercase">상태</div>
-                                            )}
-                                            <span className="text-[11px] font-bold text-muted-foreground">{log.author}</span>
-                                        </div>
-                                        <p className="text-sm font-medium text-foreground/90 leading-relaxed word-break-keep-all">{log.text}</p>
-                                        <p className="text-xs font-bold text-muted-foreground mt-3 flex items-center gap-1.5"><Clock className="w-3 h-3" /> {log.time}</p>
-                                    </div>
+                            {updates.length === 0 ? (
+                                <div className="text-center py-6">
+                                    <p className="text-sm text-muted-foreground">기록된 히스토리가 없습니다.</p>
                                 </div>
-                            ))}
+                            ) : (
+                                updates.map((log: any, i: number) => (
+                                    <div key={log.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group mb-6 last:mb-0">
+                                        <div className={`flex items-center justify-center w-5 h-5 rounded-full border-4 border-background shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10 bg-primary`} />
+                                        <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] bg-muted/20 p-4 rounded-2xl border border-border/40 hover:border-primary/30 transition-colors shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-black tracking-wider uppercase">보고</div>
+                                                <span className="text-[11px] font-bold text-muted-foreground">{log.author?.name || "시스템"}</span>
+                                            </div>
+                                            <p className="text-sm font-medium text-foreground/90 leading-relaxed word-break-keep-all">{log.content}</p>
+                                            <p className="text-xs font-bold text-muted-foreground mt-3 flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(log.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>

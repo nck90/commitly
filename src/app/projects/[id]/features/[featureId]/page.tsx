@@ -13,7 +13,20 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     });
 
     const feature = await prisma.feature.findUnique({
-        where: { id: featureId }
+        where: { id: featureId },
+        include: {
+            checklists: {
+                orderBy: { createdAt: 'asc' }
+            },
+            replies: {
+                include: { author: true },
+                orderBy: { createdAt: 'asc' }
+            },
+            updates: {
+                include: { author: true },
+                orderBy: { createdAt: 'desc' }
+            }
+        }
     });
 
     if (!project || !feature) notFound();

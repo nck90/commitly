@@ -93,11 +93,26 @@ model Feature {
 
   project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   decisions          Decision[]
+  checklists         FeatureChecklist[]
+  replies            Reply[]
+  updates            Update[]
+}
+
+model FeatureChecklist {
+  id          String   @id @default(cuid())
+  featureId   String
+  content     String
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  feature     Feature  @relation(fields: [featureId], references: [id], onDelete: Cascade)
 }
 
 model Update {
   id                 String   @id @default(cuid())
   projectId          String
+  featureId          String?
   authorId           String
   title              String
   content            String // Internal dev notes
@@ -106,6 +121,7 @@ model Update {
   createdAt          DateTime @default(now())
 
   project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  feature            Feature? @relation(fields: [featureId], references: [id], onDelete: Cascade)
   author             User     @relation(fields: [authorId], references: [id])
   confirmations      Confirmation[]
 }
@@ -174,6 +190,7 @@ model Reply {
   confirmationId String?
   decisionId     String?
   riskId         String?
+  featureId      String?
   content        String
   createdAt      DateTime @default(now())
 
@@ -181,6 +198,7 @@ model Reply {
   confirmation   Confirmation? @relation(fields: [confirmationId], references: [id], onDelete: Cascade)
   decision       Decision? @relation(fields: [decisionId], references: [id], onDelete: Cascade)
   risk           Risk?     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  feature        Feature?  @relation(fields: [featureId], references: [id], onDelete: Cascade)
 }
 
 model ScopeDoc {
