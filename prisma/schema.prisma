@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  name          String?
+  role          String?   // "client" | "developer" | null (for onboarding)
+  createdAt     DateTime  @default(now())
+  
+  workspaces    WorkspaceMember[]
+  projectsOwned Project[] @relation("AgencyProjects")
+  projectsClient Project[] @relation("ClientProjects")
+  updates       Update[]
+  decisionsReq  Decision[]
+  confirmations Confirmation[]
+  replies       Reply[]
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  
+  members     WorkspaceMember[]
+  projects    Project[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String    // "admin" | "member"
+  createdAt   DateTime  @default(now())
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  workspaceId String
+  agencyId    String?
+  clientId    String?
+  name        String
+  description String?
+  status      String   @default("active") // "active", "completed", "hold"
+  startDate   DateTime?
+  endDate     DateTime?
+  healthScore Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agency      User?     @relation("AgencyProjects", fields: [agencyId], references: [id])
+  client      User?     @relation("ClientProjects", fields: [clientId], references: [id])
+
+  features    Feature[]
+  updates     Update[]
+  decisions   Decision[]
+  risks       Risk[]
+  scopeDocs   ScopeDoc[]
+}
+
+model Feature {
+  id                 String   @id @default(cuid())
+  projectId          String
+  name               String
+  description        String?
+  clientDescription  String?
+  status             String   @default("not_started") // "not_started", "in_progress", "done", "blocked"
+  priority           String   @default("medium") // "high", "medium", "low"
+  progressPercentage Int      @default(0)
+  startDate          DateTime?
+  dueDate            DateTime?
+  blockerFlag        Boolean  @default(false)
+  decisionNeededFlag Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  decisions          Decision[]
+}
+
+model Update {
+  id                 String   @id @default(cuid())
+  projectId          String
+  authorId           String
+  title              String
+  content            String // Internal dev notes
+  clientSummary      String? // AI generated simple text
+  status             String   @default("new") // "new", "checked"
+  createdAt          DateTime @default(now())
+
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author             User     @relation(fields: [authorId], references: [id])
+  confirmations      Confirmation[]
+}
+
+model Decision {
+  id                 String   @id @default(cuid())
+  projectId          String
+  authorId           String
+  featureId          String?
+  title              String
+  description        String?
+  clientContext      String? // AI simplified
+  status             String   @default("pending") // "pending", "approved", "revision_requested", "rejected"
+  recommendedOptionId String?
+  deadline           DateTime?
+  createdAt          DateTime @default(now())
+  decidedAt          DateTime?
+
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author             User     @relation(fields: [authorId], references: [id])
+  feature            Feature? @relation(fields: [featureId], references: [id])
+  options            DecisionOption[]
+  replies            Reply[]
+}
+
+model DecisionOption {
+  id          String   @id @default(cuid())
+  decisionId  String
+  label       String
+  description String?
+  isSelected  Boolean  @default(false)
+
+  decision    Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+}
+
+model Risk {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String
+  severity    String   @default("medium") // "low", "medium", "high"
+  status      String   @default("active") // "active", "mitigated", "resolved"
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  replies     Reply[]
+}
+
+model Confirmation {
+  id          String   @id @default(cuid())
+  updateId    String
+  userId      String
+  action      String   // "confirmed", "question", "objection"
+  comment     String?
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  update      Update   @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+  replies     Reply[]
+}
+
+model Reply {
+  id             String   @id @default(cuid())
+  authorId       String
+  confirmationId String?
+  decisionId     String?
+  riskId         String?
+  content        String
+  createdAt      DateTime @default(now())
+
+  author         User     @relation(fields: [authorId], references: [id])
+  confirmation   Confirmation? @relation(fields: [confirmationId], references: [id], onDelete: Cascade)
+  decision       Decision? @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  risk           Risk?     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+}
+
+model ScopeDoc {
+  id          String   @id @default(cuid())
+  projectId   String
+  type        String   // "contract", "spec", "design"
+  title       String
+  contentUrl  String?
+  textContent String?
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}

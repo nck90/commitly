@@ -1,0 +1,315 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 20% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 239 90% 74%;
+
+    --secondary: 225 14% 94%;
+    --secondary-foreground: 222 25% 35%;
+
+    --muted: 225 14% 92%;
+    --muted-foreground: 222 12% 52%;
+
+    --accent: 239 60% 97%;
+    --accent-foreground: 239 70% 52%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 12%;
+
+    --info: 239 84% 67%;
+    --info-foreground: 0 0% 100%;
+
+    --review: 275 80% 62%;
+    --review-foreground: 0 0% 100%;
+
+    --border: 225 20% 92%;
+    --input: 225 18% 90%;
+    --ring: 239 84% 67%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 225 14% 64%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 40% 16%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 222 40% 16%;
+    --sidebar-ring: 239 84% 67%;
+    --sidebar-muted: 225 14% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv02';
+    letter-spacing: -0.015em;
+    line-height: 1.6;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  h1 {
+    @apply text-3xl sm:text-4xl font-extrabold leading-[1.15] text-foreground;
+    text-wrap: balance;
+  }
+
+  h2 {
+    @apply text-xl sm:text-2xl font-bold leading-snug text-foreground/90;
+    text-wrap: balance;
+  }
+
+  h3 {
+    @apply text-lg sm:text-xl font-semibold leading-snug text-foreground/80;
+  }
+}
+
+@layer components {
+
+  /* ─── Cards ─── */
+  .commitly-card {
+    @apply bg-card rounded-[24px] border border-border/40 transition-all duration-300 ease-out;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.02), 0 2px 4px -2px rgb(0 0 0 / 0.02);
+  }
+
+  .commitly-card-hover {
+    @apply commitly-card cursor-pointer;
+  }
+
+  .commitly-card-hover:hover {
+    box-shadow: 0 20px 40px -10px rgb(0 0 0 / 0.08), 0 10px 20px -5px rgb(0 0 0 / 0.04);
+    @apply border-border/80;
+    transform: translateY(-4px);
+  }
+
+  /* ─── Glass card ─── */
+  .glass-card {
+    @apply rounded-2xl border border-border/50 transition-all duration-200;
+    background: linear-gradient(135deg, hsl(0 0% 100% / 0.9), hsl(0 0% 100% / 0.7));
+    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.02);
+  }
+
+  /* ─── Badges ─── */
+  .commitly-badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold leading-none tracking-tight;
+  }
+
+  .badge-success {
+    background: hsl(var(--success) / 0.1);
+    color: hsl(var(--success));
+  }
+
+  .badge-warning {
+    background: hsl(var(--warning) / 0.1);
+    color: hsl(var(--warning));
+  }
+
+  .badge-danger {
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+  }
+
+  .badge-info {
+    background: hsl(var(--primary) / 0.08);
+    color: hsl(var(--primary));
+  }
+
+  .badge-review {
+    background: hsl(var(--review) / 0.1);
+    color: hsl(var(--review));
+  }
+
+  .badge-neutral {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* ─── Stat cards ─── */
+  .stat-card {
+    @apply commitly-card p-6 flex flex-col gap-2;
+  }
+
+  /* ─── Page header ─── */
+  .page-header {
+    @apply mb-10;
+  }
+
+  .page-title {
+    @apply text-foreground text-[1.85rem] font-extrabold tracking-tight;
+  }
+
+  .page-desc {
+    @apply text-muted-foreground mt-2 text-[15px] leading-relaxed;
+  }
+
+  /* ─── Section headers ─── */
+  .section-title {
+    @apply text-foreground flex items-center gap-2 font-semibold text-[15px];
+  }
+
+  /* ─── Filter pills ─── */
+  .filter-pill {
+    @apply px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer select-none;
+  }
+
+  .filter-pill-active {
+    @apply bg-foreground text-background shadow-sm;
+  }
+
+  .filter-pill-inactive {
+    @apply bg-card text-muted-foreground hover:text-foreground border border-border/80 hover:border-border;
+  }
+
+  /* ─── Empty states ─── */
+  .empty-state {
+    @apply commitly-card p-20 text-center;
+  }
+
+  .empty-state-icon {
+    @apply h-12 w-12 mx-auto mb-6 text-muted-foreground/20;
+  }
+
+  .empty-state-title {
+    @apply text-base font-semibold text-foreground mb-2;
+  }
+
+  .empty-state-desc {
+    @apply text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto;
+  }
+
+  /* ─── Risk cards ─── */
+  .risk-card {
+    @apply commitly-card p-5 border-l-4;
+  }
+
+  .risk-high {
+    border-left-color: hsl(var(--destructive));
+  }
+
+  .risk-medium {
+    border-left-color: hsl(var(--warning));
+  }
+
+  .risk-low {
+    border-left-color: hsl(var(--primary));
+  }
+
+  /* ─── Progress bar ─── */
+  .progress-track {
+    @apply h-2 rounded-full overflow-hidden;
+    background: hsl(var(--muted));
+  }
+
+  .progress-fill {
+    @apply h-2 rounded-full transition-all duration-700 ease-out;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+  }
+
+  /* ─── Inputs ─── */
+  .commitly-input {
+    @apply w-full px-4 py-3 rounded-xl border border-input bg-card text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/40 transition-all duration-150;
+  }
+
+  .commitly-textarea {
+    @apply commitly-input resize-none min-h-[120px] leading-relaxed;
+  }
+
+  /* ─── Alert banner ─── */
+  .alert-banner {
+    @apply flex items-center gap-3 px-5 py-4 rounded-2xl text-[13px] font-medium;
+  }
+
+  .alert-banner-warning {
+    @apply alert-banner;
+    background: hsl(var(--warning) / 0.06);
+    border: 1px solid hsl(var(--warning) / 0.15);
+  }
+
+  .alert-banner-danger {
+    @apply alert-banner;
+    background: hsl(var(--destructive) / 0.05);
+    border: 1px solid hsl(var(--destructive) / 0.12);
+  }
+
+  .alert-banner-info {
+    @apply alert-banner;
+    background: hsl(var(--primary) / 0.05);
+    border: 1px solid hsl(var(--primary) / 0.12);
+  }
+
+  /* ─── Metric pill ─── */
+  .metric-block {
+    @apply p-4 rounded-2xl text-center;
+    background: hsl(var(--muted) / 0.5);
+  }
+
+  /* ─── Gradient accent ─── */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--review)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+}
