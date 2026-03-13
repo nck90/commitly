@@ -27,3 +27,16 @@ dist-ssr
 
 .next/
 .vercel
+
+# Test artifacts
+commitly-test-*
+test-repo
+public/uploads/
+*.pdf
+test-db.*
+test-prisma.ts
+test-webhook.json
+test-e2e-flow.ts
+test-risk.ts
+test-metrics.js
+seed-github-repo.cjs

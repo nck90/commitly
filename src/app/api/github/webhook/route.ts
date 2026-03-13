@@ -84,18 +84,63 @@ export async function POST(req: Request) {
                 const clientSummaryText = await summarizePRForClient(pr.title, pr.body);
 
                 for (const project of projects) {
+                    const features = await prisma.feature.findMany({ where: { projectId: project.id } });
+                    
+                    let matchedFeatureIds: string[] = [];
+                    // Match features for PRs just like we do for commits
+                    for (const feature of features) {
+                        const isMatch = pr.title.toLowerCase().includes(feature.name.toLowerCase()) || 
+                                        pr.title.includes(`[${feature.name}]`) ||
+                                        pr.title.includes(`TSK-${feature.id.substring(0, 4)}`);
+
+                        if (isMatch) {
+                            matchedFeatureIds.push(feature.id);
+                            
+                            if (feature.status !== "done") {
+                                // If PR is merged, mark as done. If opened, mark as in progress.
+                                const newProgress = (prAction === "closed" && pr.merged) ? 100 : 50;
+                                const newStatus = (prAction === "closed" && pr.merged) ? "done" : "in_progress";
+                                
+                                await prisma.feature.update({
+                                    where: { id: feature.id },
+                                    data: {
+                                        status: newStatus,
+                                        progressPercentage: newProgress
+                                    }
+                                });
+                            }
+                        }
+                    }
+
                     if (project.agencyId) {
                         const statusText = prAction === "closed" && pr.merged ? "Merged" : prAction;
-                        await prisma.update.create({
-                            data: {
-                                projectId: project.id,
-                                authorId: project.agencyId,
-                                title: `기능 업데이트 내역 공유 (${statusText})`,
-                                content: `**[Developer Note: ${pr.title}]**\n[👉 전문 보기](${pr.html_url})`,
-                                clientSummary: clientSummaryText,
-                                status: "new"
+                        
+                        if (matchedFeatureIds.length > 0) {
+                            for (const fid of matchedFeatureIds) {
+                                await prisma.update.create({
+                                    data: {
+                                        projectId: project.id,
+                                        featureId: fid,
+                                        authorId: project.agencyId,
+                                        title: `기능 업데이트 내역 공유 (${statusText})`,
+                                        content: `**[Developer Note: ${pr.title}]**\n[👉 전문 보기](${pr.html_url})`,
+                                        clientSummary: clientSummaryText,
+                                        status: "new"
+                                    }
+                                });
                             }
-                        });
+                        } else {
+                            await prisma.update.create({
+                                data: {
+                                    projectId: project.id,
+                                    authorId: project.agencyId,
+                                    title: `기능 업데이트 내역 공유 (${statusText})`,
+                                    content: `**[Developer Note: ${pr.title}]**\n[👉 전문 보기](${pr.html_url})`,
+                                    clientSummary: clientSummaryText,
+                                    status: "new"
+                                }
+                            });
+                        }
                     }
                 }
             }
